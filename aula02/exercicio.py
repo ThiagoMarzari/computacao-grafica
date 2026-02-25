@@ -31,6 +31,12 @@ def subtrair_vetores(x1, y1, z1, x2, y2, z2):
   #subtrai os vetores
   return v1 - v2
 
+def escalar_multiplicar_vetor(x, y, z, escalar):
+  return np.array([x, y, z]) * escalar
+
+def escalar_dividir_vetor(x, y, z, escalar):
+  return np.array([x, y, z]) / escalar
+
 x, y, z = pega_coordenadas()
 
 while True:
@@ -40,7 +46,9 @@ while True:
     print("2. Normalizar vetor")
     print("3. Adicionar outro vetor")
     print("4. Subtrair vetores")
-    print("5. Sair")
+    print("5. Multiplicar vetor por escalar")
+    print("6. Dividir vetor por escalar")
+    print("7. Sair")
     op = int(input("Opção: "))
     if op == 0:
         limpa_console()
@@ -60,6 +68,14 @@ while True:
         limpa_console()
         print("Resultado da subtração de vetores: ", subtrair_vetores(x, y, z, x2, y2, z2))
     elif op == 5:
+        limpa_console()
+        escalar = int(input("Digite o escalar: "))
+        print("Resultado da multiplicação do vetor por escalar: ", escalar_multiplicar_vetor(x, y, z, escalar))
+    elif op == 6:
+        limpa_console()
+        escalar = int(input("Digite o escalar: "))
+        print("Resultado da divisão do vetor por escalar: ", escalar_dividir_vetor(x, y, z, escalar))
+    elif op == 7:
         limpa_console()
         break
   
