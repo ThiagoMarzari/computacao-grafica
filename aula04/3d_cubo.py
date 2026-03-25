@@ -2,15 +2,15 @@ import matplotlib.pyplot as plt
 
 # Vamos modelar o nosso 'cubo' utilizando a linguagem python:
 # a) Passo 1: definir as coordenadas de cada ponto
-# Definição dos pontos que definem os vértices do cubo
-P1 = (-0.5, -0.5, -0.5)
-P2 = (-0.5, -0.5,  0.5)
-P3 = (-0.5,  0.5, -0.5)
-P4 = (-0.5,  0.5,  0.5)
-P5 = ( 0.5, -0.5, -0.5)
-P6 = ( 0.5, -0.5,  0.5)
-P7 = ( 0.5,  0.5, -0.5)
-P8 = ( 0.5,  0.5,  0.5)
+# Definição dos pontos que definem os vértices do cubo (agora 2x maior)
+P1 = (-1.0, -1.0, -1.0)
+P2 = (-1.0, -1.0,  1.0)
+P3 = (-1.0,  1.0, -1.0)
+P4 = (-1.0,  1.0,  1.0)
+P5 = ( 1.0, -1.0, -1.0)
+P6 = ( 1.0, -1.0,  1.0)
+P7 = ( 1.0,  1.0, -1.0)
+P8 = ( 1.0,  1.0,  1.0)
 
 arestas = [(P1, P2), (P2, P4), (P4, P3), (P3, P1),
            (P5, P6), (P6, P8), (P8, P7), (P7, P5),
@@ -31,9 +31,9 @@ ax.set_xlabel('X')  # Configurando o rótulo do eixo x
 ax.set_ylabel('Y')  # Configurando o rótulo do eixo y
 ax.set_zlabel('Z')  # Configurando o rótulo do eixo z
 ax.set_title('Cubo no Espaço 3D')  # Configurando o título do gráfico
-ax.set_xlim(-0.5, 0.5)  # Limites do eixo X * 
-ax.set_ylim(-0.5, 0.5)  # Limites do eixo Y
-ax.set_zlim(-0.5, 0.5)  # Limites do eixo Z
+ax.set_xlim(-1.0, 1.0)  # Limites do eixo X * 
+ax.set_ylim(-1.0, 1.0)  # Limites do eixo Y
+ax.set_zlim(-1.0, 1.0)  # Limites do eixo Z
 # Adicionando manualmente uma legenda para o eixo Z
 ax.text(0.7, 0.5, 0.6, 'Z', color='black')  # Adicionando o texto 'Z' na posição desejada
 # Mostrando o gráfico
