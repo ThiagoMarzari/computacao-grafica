@@ -1,0 +1,3 @@
+newmtl Sting
+Kd 1.0 1.0 1.0
+map_Kd Textures/Sting_Base_Color.png
