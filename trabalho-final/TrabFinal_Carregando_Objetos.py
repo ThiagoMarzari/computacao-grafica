@@ -566,7 +566,10 @@ def inicializa_shaders_skybox():
             color = color / (color + vec3(1.0));
             color = pow(color, vec3(1.0 / 2.2));
             
-            FragColor = vec4(color, 1.0);
+            // Escurece significativamente para criar a noite de terror
+            vec3 night_color = color * 0.08;
+            
+            FragColor = vec4(night_color, 1.0);
         }
     """
     
@@ -770,16 +773,18 @@ def inicializa_shaders():
         uniform mat4 projection;
 
         out vec2 frag_uv;
+        out vec3 frag_pos_view;
+        out vec3 frag_pos_world;
 
         void main()
         {
             frag_uv = in_uv;
-
-            gl_Position =
-                projection *
-                view *
-                model *
-                vec4(in_pos, 1.0);
+            vec4 world_pos = model * vec4(in_pos, 1.0);
+            frag_pos_world = world_pos.xyz;
+            
+            vec4 view_pos = view * world_pos;
+            frag_pos_view = view_pos.xyz;
+            gl_Position = projection * view_pos;
         }
 
     """
@@ -793,8 +798,11 @@ def inicializa_shaders():
         #version 400
 
         in vec2 frag_uv;
+        in vec3 frag_pos_view;
+        in vec3 frag_pos_world;
 
         uniform sampler2D texture1;
+        uniform float time;
 
         out vec4 FragColor;
 
@@ -806,7 +814,34 @@ def inicializa_shaders():
             if (color.a < 0.1)
                 discard;
                 
-            FragColor = color;
+            // 1. Iluminação ambiente da noite (sem lanterna)
+            float ambient = 0.25;
+            
+            // 2. Luz vermelha pulsante de terror vindo da cabana (World Space)
+            // Posição ajustada para a janela/porta da cabana
+            vec3 red_light_pos = vec3(5.0, -5.0, 2.0);
+            float red_dist = distance(frag_pos_world, red_light_pos);
+            float red_attenuation = 1.0 / (1.0 + 0.15 * red_dist + 0.08 * red_dist * red_dist);
+            
+            float pulse = 0.7 + 0.3 * sin(time * 3.0);
+            vec3 red_light_color = vec3(0.9, 0.0, 0.0) * red_attenuation * 6.0 * pulse;
+            
+            // Combina as iluminações
+            vec3 final_lighting = vec3(ambient) + red_light_color;
+            vec3 lit_color = color.rgb * final_lighting;
+            
+            // 3. Efeito de Neblina Escura (Fog de Terror)
+            float dist = length(frag_pos_view);
+            float fog_start = 5.0;
+            float fog_end = 75.0;
+            float fog_factor = clamp((dist - fog_start) / (fog_end - fog_start), 0.0, 1.0);
+            
+            // Tom de cinza escuro da noite de terror
+            vec3 fog_color = vec3(0.035, 0.04, 0.05);
+            
+            vec3 final_color = mix(lit_color, fog_color, fog_factor);
+            
+            FragColor = vec4(final_color, color.a);
         }
 
     """
@@ -992,6 +1027,12 @@ def render_loop():
 
         glUseProgram(Shader_programm)
 
+        # Envia tempo para oscilação da luz vermelha de terror da cabana
+        glUniform1f(
+            glGetUniformLocation(Shader_programm, "time"),
+            glfw.get_time()
+        )
+
         # ==================================================
         # VIEW
         # ==================================================
@@ -1061,6 +1102,10 @@ def render_loop():
         # Restaura o shader principal e o depth func padrão
         glDepthFunc(GL_LESS)
         glUseProgram(Shader_programm)
+        glUniform1f(
+            glGetUniformLocation(Shader_programm, "time"),
+            glfw.get_time()
+        )
 
 
         # ==================================================
