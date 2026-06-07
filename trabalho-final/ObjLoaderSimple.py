@@ -50,7 +50,7 @@ class ObjLoaderSimple:
     # ======================================================
 
     @staticmethod
-    def load_obj(filename):
+    def load_obj(filename, material_filter=None):
 
 
         # ==================================================
@@ -85,6 +85,8 @@ class ObjLoaderSimple:
 
         with open(filename, "r") as file:
 
+            current_object = ""
+            current_material = ""
 
             # ==================================================
             # LOOP LINHAS DO OBJ
@@ -110,15 +112,20 @@ class ObjLoaderSimple:
 
                 values = line.split()
 
+                if len(values) == 0:
+                    continue
 
                 # ==================================================
                 # IGNORA LINHAS VAZIAS
                 # ==================================================
 
-                if len(values) == 0:
-
+                if values[0] in ("o", "g"):
+                    current_object = values[1] if len(values) > 1 else ""
                     continue
 
+                if values[0] == "usemtl":
+                    current_material = values[1] if len(values) > 1 else ""
+                    continue
 
                 # ======================================================
                 # VÉRTICES
@@ -223,6 +230,12 @@ class ObjLoaderSimple:
 
                 elif values[0] == "f":
 
+                    if current_object.lower().startswith(("ground", "light")):
+                        continue
+
+                    if material_filter is not None and current_material != material_filter:
+                        continue
+
 
                     # ==================================================
                     # LISTA TEMPORÁRIA DA FACE
@@ -278,7 +291,10 @@ class ObjLoaderSimple:
                         # ÍNDICE UV
                         # ==================================================
 
-                        vt_idx = int(vals[1]) - 1
+                        if len(vals) > 1 and vals[1] != "":
+                            vt_idx = int(vals[1]) - 1
+                        else:
+                            vt_idx = -1
 
 
                         # ==================================================
@@ -386,7 +402,10 @@ class ObjLoaderSimple:
 
             vertex = vertices[v_idx]
 
-            texcoord = textures[vt_idx]
+            if vt_idx >= 0 and vt_idx < len(textures):
+                texcoord = textures[vt_idx]
+            else:
+                texcoord = [0.0, 0.0]
 
 
             # ==================================================

@@ -66,6 +66,8 @@ from pyrr import Vector3
 
 import ctypes
 
+import cv2
+
 
 # ==========================================================
 # ARQUIVOS AUXILIARES
@@ -81,26 +83,45 @@ from Camera import Camera
 from ObjLoaderSimple import ObjLoaderSimple
 
 
-# ==========================================================
-# OBJETO CHIBI
-# ==========================================================
 
-PASTA_CHIBI = "objetos/chibi/"
-
-ARQUIVO_OBJ_CHIBI = PASTA_CHIBI + "chibi.obj"
-
-ARQUIVO_TEX_CHIBI = PASTA_CHIBI + "chibi.png"
 
 
 # ==========================================================
-# OBJETO CAT
+# OBJETO CABANA (OBJ)
 # ==========================================================
 
-PASTA_CAT = "objetos/cat/"
+PASTA_CABANA = "objetos/Cabana/"
 
-ARQUIVO_OBJ_CAT = PASTA_CAT + "cat.obj"
+ARQUIVO_OBJ_CABANA = PASTA_CABANA + "cottage_obj.obj"
 
-ARQUIVO_TEX_CAT = PASTA_CAT + "cat_diffuse.jpg"
+ARQUIVO_TEX_CABANA = PASTA_CABANA + "cottage_diffuse.png"
+
+
+# ==========================================================
+# OBJETO ARVORE (OBJ)
+# ==========================================================
+
+PASTA_TREE = "objetos/Arvore/"
+
+ARQUIVO_OBJ_TREE = PASTA_TREE + "Tree.obj"
+
+ARQUIVO_TEX_TREE_TRUNK = PASTA_TREE + "bark_0021.jpg"
+
+ARQUIVO_TEX_TREE_LEAVES = PASTA_TREE + "DB2X2_L01.png"
+
+
+# ==========================================================
+# TERRENO (PLANO)
+# ==========================================================
+
+ARQUIVO_TEX_GROUND = "texturas/grama/rocky_terrain_02_diff_1k.jpg"
+
+
+# ==========================================================
+# CÉU (SKYBOX)
+# ==========================================================
+
+ARQUIVO_TEX_SKY = "texturas/kloofendal_overcast_puresky_1k.hdr"
 
 
 # ==========================================================
@@ -123,32 +144,72 @@ Window = None
 Shader_programm = None
 
 
+
+
+
 # ==========================================================
-# CHIBI
+# CABANA
 # ==========================================================
 
-# VAO chibi
-vao_chibi = None
+# VAO cabana
+vao_cabana = None
 
 # quantidade vértices
-num_vertices_chibi = 0
+num_vertices_cabana = 0
 
-# textura
-textura_chibi = None
+# textura cabana
+textura_cabana = None
 
 
 # ==========================================================
-# CAT
+# TERRENO
 # ==========================================================
 
-# VAO gato
-vao_cat = None
+# VAO terreno
+vao_ground = None
 
 # quantidade vértices
-num_vertices_cat = 0
+num_vertices_ground = 0
 
-# textura gato
-textura_cat = None
+# textura terreno
+textura_ground = None
+
+
+# ==========================================================
+# CÉU (SKYBOX)
+# ==========================================================
+
+# Shader céu
+Shader_skybox = None
+
+# VAO céu
+vao_skybox = None
+
+# textura céu (HDR)
+textura_skybox = None
+
+
+# ==========================================================
+# ARVORE
+# ==========================================================
+
+# VAO arvore - tronco
+vao_tree_trunk = None
+
+# quantidade vértices - tronco
+num_vertices_tree_trunk = 0
+
+# textura - tronco
+textura_tree_trunk = None
+
+# VAO arvore - folhas
+vao_tree_leaves = None
+
+# quantidade vértices - folhas
+num_vertices_tree_leaves = 0
+
+# textura - folhas
+textura_tree_leaves = None
 
 
 # ==========================================================
@@ -339,10 +400,220 @@ def inicializa_opengl():
 
 
 # ==========================================================
+# CRIA TERRENO (PLANO REPETIDO)
+# ==========================================================
+
+def criar_terreno(arquivo_tex):
+    """
+    Cria uma malha plana de terreno (quadrado) com coordenadas de textura
+    que se repetem para criar um ladrilhamento (tiling).
+    """
+    # 2 triângulos para um quad plano no chão (Y = -1.5)
+    # x y z u v
+    vertices = np.array([
+        # Triângulo 1
+        -100.0, -1.5, -100.0,  0.0, 50.0,
+        -100.0, -1.5,  100.0,  0.0,  0.0,
+         100.0, -1.5, -100.0, 50.0, 50.0,
+         
+        # Triângulo 2
+         100.0, -1.5, -100.0, 50.0, 50.0,
+        -100.0, -1.5,  100.0,  0.0,  0.0,
+         100.0, -1.5,  100.0, 50.0,  0.0,
+    ], dtype=np.float32)
+
+    vao = glGenVertexArrays(1)
+    glBindVertexArray(vao)
+
+    vbo = glGenBuffers(1)
+    glBindBuffer(GL_ARRAY_BUFFER, vbo)
+    glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
+
+    stride = vertices.itemsize * 5
+
+    # Atributo 0: Posição
+    glEnableVertexAttribArray(0)
+    glVertexAttribPointer(
+        0,
+        3,
+        GL_FLOAT,
+        GL_FALSE,
+        stride,
+        ctypes.c_void_p(0)
+    )
+
+    # Atributo 1: Coordenadas UV
+    glEnableVertexAttribArray(1)
+    glVertexAttribPointer(
+        1,
+        2,
+        GL_FLOAT,
+        GL_FALSE,
+        stride,
+        ctypes.c_void_p(vertices.itemsize * 3)
+    )
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0)
+    glBindVertexArray(0)
+
+    # Carrega a textura
+    textura = glGenTextures(1)
+    load_texture(arquivo_tex, textura)
+
+    return vao, 6, textura
+
+
+# ==========================================================
+# CRIA CÉU (SKYBOX CÚBICO)
+# ==========================================================
+
+def criar_skybox():
+    vertices = np.array([
+        # Posições do cubo unitário
+        -1.0,  1.0, -1.0,
+        -1.0, -1.0, -1.0,
+         1.0, -1.0, -1.0,
+         1.0, -1.0, -1.0,
+         1.0,  1.0, -1.0,
+        -1.0,  1.0, -1.0,
+
+        -1.0, -1.0,  1.0,
+        -1.0, -1.0, -1.0,
+        -1.0,  1.0, -1.0,
+        -1.0,  1.0, -1.0,
+        -1.0,  1.0,  1.0,
+        -1.0, -1.0,  1.0,
+
+         1.0, -1.0, -1.0,
+         1.0, -1.0,  1.0,
+         1.0,  1.0,  1.0,
+         1.0,  1.0,  1.0,
+         1.0,  1.0, -1.0,
+         1.0, -1.0, -1.0,
+
+        -1.0, -1.0,  1.0,
+        -1.0,  1.0,  1.0,
+         1.0,  1.0,  1.0,
+         1.0,  1.0,  1.0,
+         1.0, -1.0,  1.0,
+        -1.0, -1.0,  1.0,
+
+        -1.0,  1.0, -1.0,
+         1.0,  1.0, -1.0,
+         1.0,  1.0,  1.0,
+         1.0,  1.0,  1.0,
+        -1.0,  1.0,  1.0,
+        -1.0,  1.0, -1.0,
+
+        -1.0, -1.0, -1.0,
+        -1.0, -1.0,  1.0,
+         1.0, -1.0, -1.0,
+         1.0, -1.0, -1.0,
+        -1.0, -1.0,  1.0,
+         1.0, -1.0,  1.0
+    ], dtype=np.float32)
+
+    vao = glGenVertexArrays(1)
+    glBindVertexArray(vao)
+
+    vbo = glGenBuffers(1)
+    glBindBuffer(GL_ARRAY_BUFFER, vbo)
+    glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
+
+    glEnableVertexAttribArray(0)
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertices.itemsize * 3, ctypes.c_void_p(0))
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0)
+    glBindVertexArray(0)
+
+    return vao, 36
+
+
+# ==========================================================
+# SHADERS DO CÉU (EQUIRRETANGULAR HDR)
+# ==========================================================
+
+def inicializa_shaders_skybox():
+    vertex_src = """
+        #version 400
+        layout(location = 0) in vec3 in_pos;
+        uniform mat4 projection;
+        uniform mat4 view;
+        out vec3 local_pos;
+        void main()
+        {
+            local_pos = in_pos;
+            mat4 view_no_translate = mat4(mat3(view));
+            vec4 pos = projection * view_no_translate * vec4(in_pos, 1.0);
+            gl_Position = pos.xyww;
+        }
+    """
+    
+    fragment_src = """
+        #version 400
+        in vec3 local_pos;
+        uniform sampler2D sky_texture;
+        out vec4 FragColor;
+        void main()
+        {
+            vec3 dir = normalize(local_pos);
+            // Mapeamento equirretangular de coordenadas 3D para 2D UV
+            float u = atan(dir.z, dir.x) / (2.0 * 3.14159265359) + 0.5;
+            float v = asin(dir.y) / 3.14159265359 + 0.5;
+            vec3 color = texture(sky_texture, vec2(u, v)).rgb;
+            
+            // Tonemapping de Reinhard e correção gama
+            color = color / (color + vec3(1.0));
+            color = pow(color, vec3(1.0 / 2.2));
+            
+            FragColor = vec4(color, 1.0);
+        }
+    """
+    
+    vertex_shader = OpenGL.GL.shaders.compileShader(vertex_src, GL_VERTEX_SHADER)
+    fragment_shader = OpenGL.GL.shaders.compileShader(fragment_src, GL_FRAGMENT_SHADER)
+    return OpenGL.GL.shaders.compileProgram(vertex_shader, fragment_shader)
+
+
+# ==========================================================
+# CARREGA TEXTURA HDR (FLUTUANTE)
+# ==========================================================
+
+def carregar_textura_hdr(caminho):
+    img = cv2.imread(caminho, cv2.IMREAD_UNCHANGED)
+    if img is None:
+        raise RuntimeError(f"Erro ao carregar imagem HDR no caminho: {caminho}")
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    height, width, _ = img.shape
+
+    textura = glGenTextures(1)
+    glBindTexture(GL_TEXTURE_2D, textura)
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+    
+    # Upload dos dados como float (usando GL_RGB16F para HDR)
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGB16F,
+        width,
+        height,
+        0,
+        GL_RGB,
+        GL_FLOAT,
+        img
+    )
+    return textura
+
+
+# ==========================================================
 # CARREGA OBJETO
 # ==========================================================
 
-def carregar_objeto(arquivo_obj, arquivo_tex):
+def carregar_objeto(arquivo_obj, arquivo_tex, material_filter=None):
 
     """
     Carrega:
@@ -362,7 +633,8 @@ def carregar_objeto(arquivo_obj, arquivo_tex):
     # quantidade vértices
 
     buffer, num_vertices = ObjLoaderSimple.load_obj(
-        arquivo_obj
+        arquivo_obj,
+        material_filter=material_filter
     )
 
     # converte para float32
@@ -528,7 +800,13 @@ def inicializa_shaders():
 
         void main()
         {
-            FragColor = texture(texture1, frag_uv);
+            vec4 color = texture(texture1, frag_uv);
+            
+            // Descarta fragmentos transparentes para remover bordas brancas
+            if (color.a < 0.1)
+                discard;
+                
+            FragColor = color;
         }
 
     """
@@ -584,77 +862,68 @@ def inicializa_shaders():
 def render_loop():
 
     # ======================================================
-    # MATRIZ MODEL - CHIBI
+    # MATRIZ MODEL - CABANA
     # ======================================================
 
-    # reduz tamanho chibi
-    escala_chibi = pyrr.matrix44.create_from_scale(
-        Vector3([0.4, 0.4, 0.4])
+    escala_cabana = pyrr.matrix44.create_from_scale(
+        Vector3([0.2, 0.2, 0.2])
     )
 
-    # move esquerda
-    translacao_chibi = pyrr.matrix44.create_from_translation(
-        Vector3([-2.0, 0.0, 0.0])
+    # Deixa sem rotação inicial
+    rotacao_cabana = pyrr.matrix44.create_from_y_rotation(
+        np.radians(0)
     )
 
-    # aplica:
-    #
-    # escala
-    # translação
-
-    model_chibi = pyrr.matrix44.multiply(
-        translacao_chibi,
-        escala_chibi
+    # Coloca a cabana no cenário
+    translacao_cabana = pyrr.matrix44.create_from_translation(
+        Vector3([5.0, -8.0, 0.0])
     )
 
-    # ======================================================
-    # MATRIZ MODEL - GATO
-    # ======================================================
-
-    # aumenta gato
-    escala_cat = pyrr.matrix44.create_from_scale(
-        Vector3([0.12, 0.12, 0.12])
+    model_cabana = pyrr.matrix44.multiply(
+        rotacao_cabana,
+        escala_cabana
     )
 
-    # coloca gato em pé
-    rotacao_cat_x = pyrr.matrix44.create_from_x_rotation(
-        np.radians(90)
-    )
-
-    # gira gato para frente
-    #
-    # removido problema dele olhar para trás
-
-    rotacao_cat_y = pyrr.matrix44.create_from_y_rotation(
-        np.radians(360)
-    )
-
-    # move gato lado do chibi
-    #
-    # mesmo eixo Z
-
-    translacao_cat = pyrr.matrix44.create_from_translation(
-        Vector3([15.5, -1.5, 0.0])
+    model_cabana = pyrr.matrix44.multiply(
+        translacao_cabana,
+        model_cabana
     )
 
     # ======================================================
-    # MATRIZ FINAL GATO
+    # ARRANJO DE ÁRVORES (Matrizes model pré-calculadas)
     # ======================================================
 
-    model_cat = pyrr.matrix44.multiply(
-        rotacao_cat_x,
-        escala_cat
-    )
+    # Posições ao redor da cabana (a cabana está em [5.0, -1.5, 0.0])
+    posicoes_arvores = [
+        Vector3([1.5, -1.5, -4.5]),
+        Vector3([8.5, -1.5, -4.0]),
+        Vector3([0.5, -1.5, 2.5]),
+        Vector3([9.5, -1.5, 1.5]),
+        Vector3([5.0, -1.5, -10.0]),
+    ]
 
-    model_cat = pyrr.matrix44.multiply(
-        rotacao_cat_y,
-        model_cat
-    )
+    model_arvores = []
+    import random
+    # Usando semente fixa para que fiquem sempre nas mesmas posições
+    rng = random.Random(42)
 
-    model_cat = pyrr.matrix44.multiply(
-        translacao_cat,
-        model_cat
-    )
+    for pos in posicoes_arvores:
+        # Variação significativa na escala para que tenham alturas bem distintas e pareçam árvores reais
+        scale_val = rng.uniform(3.0, 6.0)
+        escala = pyrr.matrix44.create_from_scale(
+            Vector3([scale_val, scale_val, scale_val])
+        )
+        
+        # Rotação aleatória de 0 a 360 graus no eixo Y
+        rot_y = pyrr.matrix44.create_from_y_rotation(
+            np.radians(rng.uniform(0, 360))
+        )
+        
+        trans = pyrr.matrix44.create_from_translation(pos)
+        
+        m = pyrr.matrix44.multiply(rot_y, escala)
+        m = pyrr.matrix44.multiply(trans, m)
+        model_arvores.append(m)
 
     # ======================================================
     # CONTROLE TEMPO
@@ -758,53 +1027,114 @@ def render_loop():
             projection
         )
 
+
+
         # ==================================================
-        # DESENHA CHIBI
+        # DESENHA CÉU (SKYBOX)
+        # ==================================================
+
+        glDepthFunc(GL_LEQUAL)
+        glUseProgram(Shader_skybox)
+
+        # Envia view e projection para o shader do céu
+        glUniformMatrix4fv(
+            glGetUniformLocation(Shader_skybox, "view"),
+            1,
+            GL_FALSE,
+            view
+        )
+        glUniformMatrix4fv(
+            glGetUniformLocation(Shader_skybox, "projection"),
+            1,
+            GL_FALSE,
+            projection
+        )
+
+        glBindVertexArray(vao_skybox)
+        glBindTexture(GL_TEXTURE_2D, textura_skybox)
+        glDrawArrays(GL_TRIANGLES, 0, 36)
+
+        # Restaura o shader principal e o depth func padrão
+        glDepthFunc(GL_LESS)
+        glUseProgram(Shader_programm)
+
+
+        # ==================================================
+        # DESENHA TERRENO (CHÃO)
+        # ==================================================
+
+        model_ground = pyrr.matrix44.create_identity()
+        glUniformMatrix4fv(
+            glGetUniformLocation(Shader_programm, "model"),
+            1,
+            GL_FALSE,
+            model_ground
+        )
+
+        glBindVertexArray(vao_ground)
+        glBindTexture(GL_TEXTURE_2D, textura_ground)
+        glDrawArrays(GL_TRIANGLES, 0, num_vertices_ground)
+
+
+        # ==================================================
+        # DESENHA CABANA
         # ==================================================
 
         glUniformMatrix4fv(
             glGetUniformLocation(Shader_programm, "model"),
             1,
             GL_FALSE,
-            model_chibi
+            model_cabana
         )
 
         # ativa VAO
-        glBindVertexArray(vao_chibi)
+        glBindVertexArray(vao_cabana)
 
         # ativa textura
-        glBindTexture(GL_TEXTURE_2D, textura_chibi)
+        glBindTexture(GL_TEXTURE_2D, textura_cabana)
 
         # desenha
         glDrawArrays(
             GL_TRIANGLES,
             0,
-            num_vertices_chibi
+            num_vertices_cabana
         )
 
         # ==================================================
-        # DESENHA GATO
+        # DESENHA ÁRVORES (Múltiplas instâncias)
         # ==================================================
 
-        glUniformMatrix4fv(
-            glGetUniformLocation(Shader_programm, "model"),
-            1,
-            GL_FALSE,
-            model_cat
-        )
+        # 1. Desenha o tronco das árvores
+        glBindVertexArray(vao_tree_trunk)
+        glBindTexture(GL_TEXTURE_2D, textura_tree_trunk)
+        for model_tree in model_arvores:
+            glUniformMatrix4fv(
+                glGetUniformLocation(Shader_programm, "model"),
+                1,
+                GL_FALSE,
+                model_tree
+            )
+            glDrawArrays(
+                GL_TRIANGLES,
+                0,
+                num_vertices_tree_trunk
+            )
 
-        # ativa VAO
-        glBindVertexArray(vao_cat)
-
-        # ativa textura
-        glBindTexture(GL_TEXTURE_2D, textura_cat)
-
-        # desenha
-        glDrawArrays(
-            GL_TRIANGLES,
-            0,
-            num_vertices_cat
-        )
+        # 2. Desenha as folhas das árvores
+        glBindVertexArray(vao_tree_leaves)
+        glBindTexture(GL_TEXTURE_2D, textura_tree_leaves)
+        for model_tree in model_arvores:
+            glUniformMatrix4fv(
+                glGetUniformLocation(Shader_programm, "model"),
+                1,
+                GL_FALSE,
+                model_tree
+            )
+            glDrawArrays(
+                GL_TRIANGLES,
+                0,
+                num_vertices_tree_leaves
+            )
 
         # ==================================================
         # ATUALIZA
@@ -823,37 +1153,76 @@ def render_loop():
 
 def main():
 
-    global vao_chibi
-    global num_vertices_chibi
-    global textura_chibi
+    global vao_cabana
+    global num_vertices_cabana
+    global textura_cabana
 
-    global vao_cat
-    global num_vertices_cat
-    global textura_cat
+    global vao_tree_trunk
+    global num_vertices_tree_trunk
+    global textura_tree_trunk
+
+    global vao_tree_leaves
+    global num_vertices_tree_leaves
+    global textura_tree_leaves
+
+    global vao_ground
+    global num_vertices_ground
+    global textura_ground
+
+    global Shader_skybox
+    global vao_skybox
+    global textura_skybox
 
     # inicializa OpenGL
     inicializa_opengl()
 
     # ======================================================
-    # CHIBI
+    # CÉU (SKYBOX)
     # ======================================================
 
-    vao_chibi, num_vertices_chibi, textura_chibi = carregar_objeto(
-        ARQUIVO_OBJ_CHIBI,
-        ARQUIVO_TEX_CHIBI
+    vao_skybox, _ = criar_skybox()
+    textura_skybox = carregar_textura_hdr(ARQUIVO_TEX_SKY)
+    glBindVertexArray(vao_skybox)
+    Shader_skybox = inicializa_shaders_skybox()
+    glBindVertexArray(0)
+
+    # ======================================================
+    # TERRENO
+    # ======================================================
+
+    vao_ground, num_vertices_ground, textura_ground = criar_terreno(
+        ARQUIVO_TEX_GROUND
     )
 
     # ======================================================
-    # GATO
+    # CABANA
     # ======================================================
 
-    vao_cat, num_vertices_cat, textura_cat = carregar_objeto(
-        ARQUIVO_OBJ_CAT,
-        ARQUIVO_TEX_CAT
+    vao_cabana, num_vertices_cabana, textura_cabana = carregar_objeto(
+        ARQUIVO_OBJ_CABANA,
+        ARQUIVO_TEX_CABANA
+    )
+
+    # ======================================================
+    # ARVORE
+    # ======================================================
+
+    # Tronco
+    vao_tree_trunk, num_vertices_tree_trunk, textura_tree_trunk = carregar_objeto(
+        ARQUIVO_OBJ_TREE,
+        ARQUIVO_TEX_TREE_TRUNK,
+        material_filter="Trank_bark"
+    )
+
+    # Folhas
+    vao_tree_leaves, num_vertices_tree_leaves, textura_tree_leaves = carregar_objeto(
+        ARQUIVO_OBJ_TREE,
+        ARQUIVO_TEX_TREE_LEAVES,
+        material_filter="polySurface1SG1"
     )
 
     # shaders
-    glBindVertexArray(vao_chibi)
+    glBindVertexArray(vao_cabana)
     inicializa_shaders()
     glBindVertexArray(0)
 
