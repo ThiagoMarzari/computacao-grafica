@@ -890,26 +890,30 @@ def render_loop():
     )
 
     # ======================================================
-    # ARRANJO DE ÁRVORES (Matrizes model pré-calculadas)
+    # ARRANJO DE ÁRVORES (Matrizes model pré-calculadas para a floresta)
     # ======================================================
-
-    # Posições ao redor da cabana (a cabana está em [5.0, -1.5, 0.0])
-    posicoes_arvores = [
-        Vector3([1.5, -1.5, -4.5]),
-        Vector3([8.5, -1.5, -4.0]),
-        Vector3([0.5, -1.5, 2.5]),
-        Vector3([9.5, -1.5, 1.5]),
-        Vector3([5.0, -1.5, -10.0]),
-    ]
 
     model_arvores = []
     import random
-    # Usando semente fixa para que fiquem sempre nas mesmas posições
+    # Usando semente fixa para reprodutibilidade
     rng = random.Random(42)
 
+    # Geramos cerca de 180 árvores espalhadas para formar uma floresta densa
+    posicoes_arvores = []
+    while len(posicoes_arvores) < 180:
+        x = rng.uniform(-85.0, 85.0)
+        z = rng.uniform(-85.0, 85.0)
+        
+        # Evita colocar árvores em cima ou muito próximo da cabana (localizada no centro de [5.0, -8.0, 0.0])
+        dist_cabana = np.sqrt((x - 5.0)**2 + z**2)
+        if dist_cabana < 10.0:
+            continue
+            
+        posicoes_arvores.append(Vector3([x, -1.5, z]))
+
     for pos in posicoes_arvores:
-        # Variação significativa na escala para que tenham alturas bem distintas e pareçam árvores reais
-        scale_val = rng.uniform(3.0, 6.0)
+        # Árvores menores e mais proporcionais (escala de 1.2 a 2.5) com variação de altura
+        scale_val = rng.uniform(1.2, 2.5)
         escala = pyrr.matrix44.create_from_scale(
             Vector3([scale_val, scale_val, scale_val])
         )
