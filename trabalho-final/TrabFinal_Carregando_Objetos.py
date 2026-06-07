@@ -898,9 +898,9 @@ def render_loop():
     # Usando semente fixa para reprodutibilidade
     rng = random.Random(42)
 
-    # Geramos cerca de 180 árvores espalhadas para formar uma floresta densa
+    # Geramos cerca de 550 árvores espalhadas para formar uma floresta densa
     posicoes_arvores = []
-    while len(posicoes_arvores) < 180:
+    while len(posicoes_arvores) < 600:
         x = rng.uniform(-85.0, 85.0)
         z = rng.uniform(-85.0, 85.0)
         
