@@ -111,6 +111,18 @@ ARQUIVO_TEX_TREE_LEAVES = PASTA_TREE + "DB2X2_L01.png"
 
 
 # ==========================================================
+# OBJETO CONTAINER (OBJ)
+# ==========================================================
+
+PASTA_CONTAINER = "objetos/Container/"
+
+ARQUIVO_OBJ_CONTAINER = PASTA_CONTAINER + "12281_Container_v2_L2.obj"
+
+ARQUIVO_TEX_CONTAINER = PASTA_CONTAINER + "12281_Container_diffuse.jpg"
+
+
+
+# ==========================================================
 # TERRENO (PLANO)
 # ==========================================================
 
@@ -173,6 +185,20 @@ num_vertices_cat = 0
 
 # textura gato
 textura_cat = None
+
+
+# ==========================================================
+# CONTAINER
+# ==========================================================
+
+# VAO container
+vao_container = None
+
+# quantidade vértices
+num_vertices_container = 0
+
+# textura container
+textura_container = None
 
 
 # ==========================================================
@@ -967,6 +993,30 @@ def render_loop():
     )
 
     # ======================================================
+    # MATRIZ MODEL - CONTAINER
+    # ======================================================
+
+    escala_container = pyrr.matrix44.create_from_scale(
+        Vector3([0.005, 0.005, 0.005])
+    )
+
+    rotacao_container = pyrr.matrix44.create_from_x_rotation(np.radians(-90))
+
+    translacao_container = pyrr.matrix44.create_from_translation(
+        Vector3([5.0, 0, 6.0])
+    )
+
+    model_container = pyrr.matrix44.multiply(
+        rotacao_container,
+        escala_container
+    )
+
+    model_container = pyrr.matrix44.multiply(
+        model_container,
+        translacao_container
+    )
+
+    # ======================================================
     # ARRANJO DE ÁRVORES (Matrizes model pré-calculadas para a floresta)
     # ======================================================
 
@@ -975,7 +1025,7 @@ def render_loop():
     # Usando semente fixa para reprodutibilidade
     rng = random.Random(42)
 
-    # Geramos cerca de 550 árvores espalhadas para formar uma floresta densa
+    # Geramos 
     posicoes_arvores = []
     while len(posicoes_arvores) < 600:
         x = rng.uniform(-85.0, 85.0)
@@ -1213,6 +1263,27 @@ def render_loop():
         )
 
         # ==================================================
+        # DESENHA CONTAINER
+        # ==================================================
+
+        glUniformMatrix4fv(
+            glGetUniformLocation(Shader_programm, "model"),
+            1,
+            GL_FALSE,
+            model_container
+        )
+
+        glBindVertexArray(vao_container)
+
+        glBindTexture(GL_TEXTURE_2D, textura_container)
+
+        glDrawArrays(
+            GL_TRIANGLES,
+            0,
+            num_vertices_container
+        )
+
+        # ==================================================
         # DESENHA ÁRVORES (Múltiplas instâncias)
         # ==================================================
 
@@ -1273,6 +1344,10 @@ def main():
     global num_vertices_cat
     global textura_cat
 
+    global vao_container
+    global num_vertices_container
+    global textura_container
+
     global vao_tree_trunk
     global num_vertices_tree_trunk
     global textura_tree_trunk
@@ -1326,6 +1401,15 @@ def main():
     vao_cat, num_vertices_cat, textura_cat = carregar_objeto(
         "objetos/Cat/Cat.obj",
         "objetos/Cat/Cat_diffuse.jpg"
+    )
+
+    # ======================================================
+    # CONTAINER
+    # ======================================================
+
+    vao_container, num_vertices_container, textura_container = carregar_objeto(
+        ARQUIVO_OBJ_CONTAINER,
+        ARQUIVO_TEX_CONTAINER
     )
 
     # ======================================================
