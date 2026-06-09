@@ -162,6 +162,20 @@ textura_cabana = None
 
 
 # ==========================================================
+# GATO
+# ==========================================================
+
+# VAO gato
+vao_cat = None
+
+# quantidade vértices
+num_vertices_cat = 0
+
+# textura gato
+textura_cat = None
+
+
+# ==========================================================
 # TERRENO
 # ==========================================================
 
@@ -925,6 +939,34 @@ def render_loop():
     )
 
     # ======================================================
+    # MATRIZ MODEL - GATO
+    # ======================================================
+
+    escala_cat = pyrr.matrix44.create_from_scale(
+        Vector3([0.05, 0.05, 0.05])
+    )
+
+    # O modelo do gato está rotacionado. Usamos rot_x de 90 graus para deixá-lo em pé.
+    rot_x = pyrr.matrix44.create_from_x_rotation(np.radians(90))
+    rot_y = pyrr.matrix44.create_from_y_rotation(np.radians(-45))
+    rotacao_cat = pyrr.matrix44.multiply(rot_x, rot_y)
+
+    # Posiciona no chão da cabana (a base da cabana fica por volta de Y = -9.8)
+    translacao_cat = pyrr.matrix44.create_from_translation(
+        Vector3([6.8, 100.8, -30.0])
+    )
+
+    model_cat = pyrr.matrix44.multiply(
+        rotacao_cat,
+        escala_cat
+    )
+
+    model_cat = pyrr.matrix44.multiply(
+        translacao_cat,
+        model_cat
+    )
+
+    # ======================================================
     # ARRANJO DE ÁRVORES (Matrizes model pré-calculadas para a floresta)
     # ======================================================
 
@@ -1150,6 +1192,27 @@ def render_loop():
         )
 
         # ==================================================
+        # DESENHA GATO
+        # ==================================================
+
+        glUniformMatrix4fv(
+            glGetUniformLocation(Shader_programm, "model"),
+            1,
+            GL_FALSE,
+            model_cat
+        )
+
+        glBindVertexArray(vao_cat)
+
+        glBindTexture(GL_TEXTURE_2D, textura_cat)
+
+        glDrawArrays(
+            GL_TRIANGLES,
+            0,
+            num_vertices_cat
+        )
+
+        # ==================================================
         # DESENHA ÁRVORES (Múltiplas instâncias)
         # ==================================================
 
@@ -1206,6 +1269,10 @@ def main():
     global num_vertices_cabana
     global textura_cabana
 
+    global vao_cat
+    global num_vertices_cat
+    global textura_cat
+
     global vao_tree_trunk
     global num_vertices_tree_trunk
     global textura_tree_trunk
@@ -1250,6 +1317,15 @@ def main():
     vao_cabana, num_vertices_cabana, textura_cabana = carregar_objeto(
         ARQUIVO_OBJ_CABANA,
         ARQUIVO_TEX_CABANA
+    )
+
+    # ======================================================
+    # GATO
+    # ======================================================
+
+    vao_cat, num_vertices_cat, textura_cat = carregar_objeto(
+        "objetos/Cat/Cat.obj",
+        "objetos/Cat/Cat_diffuse.jpg"
     )
 
     # ======================================================
